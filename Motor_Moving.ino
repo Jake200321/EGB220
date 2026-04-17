@@ -1,4 +1,5 @@
 #include <avr/io.h>
+#include <Encoder.h>
 
 #define Button1 PC7 
 #define Button0 PC6
@@ -6,6 +7,10 @@
 #define Speed_Motor1 PB7
 #define Dir_Motor2 PE6
 #define Speed_Motor2 PD0 
+
+#define ENCODER_PIN_A 0
+#define ENCODER_PIN_B 1
+#define COUNTS_PER_ROTATION 12*50
 
 #define PWM_M1 OCR0A
 #define PWM_M2 OCR0B
@@ -16,6 +21,8 @@ bool Prev_SW1_State = false;
 bool Prev_SW2_State = false; 
 
 void motorControl();
+
+Encoder encoder_A(ENCODER_PIN_A, ENCODER_PIN_B);
 
 int clamp(int value, int minVal, int maxVal) {
     if (value < minVal) return minVal;
@@ -28,6 +35,10 @@ void setup() {
   DDRB |= (1 << Speed_Motor1); // (Speed) Sets Register B Bitmask to 10000000 enabling Pin7 as a ouput
   DDRE |= (1 << Dir_Motor2); // (Driection)
   DDRD |= (1 << Speed_Motor2);  // (Speed)
+
+  // ENCODER SET UP 
+  DDRB |= (1 << PB5); // Encoder detector for 1st motor
+  DDRB |= (1 << PB6); // Encoder detector for 2nd motor  
 
   // Button Set up
   DDRC &= ~(1 << Button1); // Sets Register C Bitmask to 01111111 enabling Pin7 as a input
@@ -45,13 +56,36 @@ void setup() {
   PWM_M1 = 100; // number we are compairing too for the 50% duty cycle on the PWM signal (127/256 = 0.5) // motor a
   PWM_M2 = 200; // motor b (max is 256)
   
+  //analogWrite(9, count/COUNTS_PER_ROTATION);
+
   Serial.begin(9600);  // Let me talk to the serial monitor fam
 }
 
 void loop() {
 
+// Encoder Setup
+  static unsigned long previous_time = micros();
+  unsigned long current_time = micros();
+
+  unsigned long dt_us = current_time - previous_time;
+  double dt_s = double(dt_us) / 1000000; 
+
+  static double previous_position = 0.0;
+
+//ENCODER LOGIC 
+  int32_t count = encoder_A.read();
+  double current_position = count / COUNTS_PER_ROTATION;
+  double dp = current_position - previous_position;
+
+  double current_speed = dp / dt_s;
+
+  //double ep = target_speed - current_speed; 
+
+// PUSH BUTTON LOGIC 
   bool Current_SW1_State = (PINC & (1 << Button1));
   bool Current_SW2_State = (PINC & (1 << Button0));
+
+
 
   // on/off logic
   if (Current_SW1_State && !Prev_SW1_State) {
@@ -83,28 +117,16 @@ void loop() {
   }
   Prev_SW2_State = Current_SW2_State;
 
-/*
-  Serial.print("S1: ");
-  Serial.println(s1Value); 
-  Serial.print("S2: ");
-  Serial.println(s2Value);
-  Serial.print("S3: ");
-  Serial.println(s3Value); 
-  Serial.print("S4: ");
-  Serial.println(s4Value); 
-  Serial.print("S5: ");
-  Serial.println(s5Value); 
-  Serial.print("S6: ");
-  Serial.println(s6Value); 
-  Serial.print("S7: ");
-  Serial.println(s7Value); 
-  Serial.print("S8: ");
-  Serial.println(s8Value); 
-  Serial.print("\n");
-  delay(500);
-*/
-  
+
+// Update encoder logic
+  previous_time = current_time;  
+  previous_position = current_position;
+
 }
+
+
+
+
 
  // el feedbacko loop for la control of el motors on el lineo 
 
@@ -119,26 +141,32 @@ void loop() {
   int s7Value = analogRead(11);
   int s8Value = analogRead(6);
 
+  //encoder feedback
+
 
   float ideal = 4.5;
 
+
   // find postion on IR array 
-  float position = (float)(s1Value*1 + s2Value*2 + s3Value*3 + s4Value*4 + s5Value*5 + s6Value*6 + s7Value*7 + s8Value*8) / (float)(s1Value + s2Value + s3Value + s4Value + s5Value + s6Value + s7Value + s8Value);
+  float position = (float)(s4Value*4 + s5Value*5 + s6Value*6 + s7Value*7 + s8Value*8) / (float)(s4Value + s5Value + s6Value + s7Value + s8Value);
   Serial.print(position);
   Serial.print("\n");
 
-  float error = position - ideal;
+  float error = ideal - position;
   Serial.print(error);
   Serial.print("\n");
 
-  float Kp = 3.0;
+  float Kp = 6.0;
   int basePWM = 150;
 
-  int LeftMotor = basePWM + (Kp * error);
-  int RightMotor = basePWM - (Kp * error);
+  //may be wrong here need to test 
+  int LeftMotor = basePWM - (Kp * error);
+  int RightMotor = basePWM + (Kp * error);
 
   PWM_M1 = clamp(LeftMotor, 50, 255);
   PWM_M2 = clamp(RightMotor, 50, 255);
+
+
 
  }
 
