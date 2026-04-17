@@ -148,7 +148,7 @@ void loop() {
 
 
   // find postion on IR array 
-  float position = (float)(s4Value*4 + s5Value*5 + s6Value*6 + s7Value*7 + s8Value*8) / (float)(s4Value + s5Value + s6Value + s7Value + s8Value);
+  float position = (float)(s4Value*1 + s5Value*2 + s6Value*3 + s7Value*4 + s8Value*5) / (float)(s4Value + s5Value + s6Value + s7Value + s8Value);
   Serial.print(position);
   Serial.print("\n");
 
