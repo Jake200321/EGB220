@@ -156,7 +156,7 @@ void loop() {
   Serial.print(error);
   Serial.print("\n");
 
-  float Kp = 6.0;
+  float Kp = 45.0;
   int basePWM = 150;
 
   //may be wrong here need to test 
